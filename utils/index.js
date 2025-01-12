@@ -2,6 +2,9 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const amqplib = require("amqplib");
 
+require('dotenv').config();
+const APP_SECRET = 'secretKey';
+
 module.exports.GeneratePassword = async (password) => {
   return await bcrypt.hash(password,8);
 };
@@ -16,7 +19,7 @@ module.exports.ValidatePassword = async (
 
 module.exports.GenerateSignature = async (payload) => {
   try {
-    return  jwt.sign(payload, 'secretKey', { expiresIn: "30d" });
+    return jwt.sign(payload, APP_SECRET, { expiresIn: "30d" });
   } catch (error) {
     console.log(error);
     return error;
@@ -26,13 +29,15 @@ module.exports.GenerateSignature = async (payload) => {
 module.exports.ValidateSignature = async (req) => {
   try {
     const signature = req.get("Authorization");
-    console.log(signature);
-    const payload = jwt.verify(signature.split(" ")[1], 'secretKey');
-    console.log(payload)
+    if (!signature || !signature.startsWith('Bearer ')) {
+      throw new Error('No Bearer token provided');
+    }
+    const token = signature.split(" ")[1];
+    const payload = jwt.verify(token, APP_SECRET);
     req.user = payload;
     return true;
   } catch (error) {
-    console.log(error);
+    console.error('Token validation error:', error.message);
     return false;
   }
 };

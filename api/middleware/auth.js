@@ -14,7 +14,7 @@ const auth = async (req, res, next) => {
 
 const isBuyer = async (req, res, next) => {
     try {
-        if (req.user && req.user.role === 'Buyer') {
+        if (req.user && req.user.role.toUpperCase() === 'BUYER') {
             return next();
         }
         return res.status(403).json({ message: 'Only buyers can perform this action' });

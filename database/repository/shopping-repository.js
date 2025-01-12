@@ -36,41 +36,44 @@ class ShoppingRepository {
                 where: { customerId }
             });
 
-            let items = [];
-            if (cart) {
-                items = Array.isArray(cart.items) ? cart.items : [];
-                const existingItemIndex = items.findIndex(i => i.productId === item.id);
-
-                if (existingItemIndex >= 0) {
-                    // Update existing item quantity
-                    items[existingItemIndex].quantity = quantity;
-                } else {
-                    // Add new item
-                    items.push({
-                        productId: item.id,
-                        name: item.name,
-                        price: item.price,
-                        quantity: quantity
-                    });
-                }
-
-                await cart.update({ items });
-            } else {
-                // Create new cart with first item
+            if (!cart) {
+                // Create new cart if it doesn't exist
                 cart = await Cart.create({
                     customerId,
                     items: [{
                         productId: item.id,
                         name: item.name,
                         price: item.price,
-                        quantity: quantity
+                        quantity: quantity || 1,
+                        image: item.image
                     }]
                 });
+            } else {
+                // Ensure items is an array
+                let items = Array.isArray(cart.items) ? [...cart.items] : [];
+                const existingItemIndex = items.findIndex(i => i.productId === item.id);
+
+                if (existingItemIndex >= 0) {
+                    // Update existing item quantity
+                    items[existingItemIndex].quantity += (quantity || 1);
+                } else {
+                    // Add new item
+                    items.push({
+                        productId: item.id,
+                        name: item.name,
+                        price: item.price,
+                        quantity: quantity || 1,
+                        image: item.image
+                    });
+                }
+
+                // Update cart with new items array
+                await cart.update({ items: items });
             }
 
             return cart;
         } catch (err) {
-            console.error('Error adding cart item:', err);
+            console.error('Error in AddCartItem:', err);
             throw err;
         }
     }
@@ -90,6 +93,52 @@ class ShoppingRepository {
             return cart;
         } catch (err) {
             console.error('Error removing cart item:', err);
+            throw err;
+        }
+    }
+
+    // Update cart item quantity
+    async UpdateCartItemQuantity(customerId, productId, quantity) {
+        try {
+            const cart = await Cart.findOne({
+                where: { customerId }
+            });
+
+            if (!cart || !Array.isArray(cart.items)) {
+                throw new Error('Cart not found');
+            }
+
+            const items = cart.items;
+            const existingItemIndex = items.findIndex(i => i.productId === productId);
+
+            if (existingItemIndex === -1) {
+                throw new Error('Item not found in cart');
+            }
+
+            items[existingItemIndex].quantity = quantity;
+            await cart.update({ items });
+
+            return cart;
+        } catch (err) {
+            console.error('Error updating cart item quantity:', err);
+            throw err;
+        }
+    }
+
+    // Clear cart
+    async ClearCart(customerId) {
+        try {
+            const cart = await Cart.findOne({
+                where: { customerId }
+            });
+
+            if (cart) {
+                await cart.update({ items: [] });
+            }
+
+            return { items: [] };
+        } catch (err) {
+            console.error('Error clearing cart:', err);
             throw err;
         }
     }

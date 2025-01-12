@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@sendinblue/client": "^3.3.1",
     "amqplib": "^0.10.5",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
@@ -7,9 +8,12 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.8.4",
+    "nodemailer": "^6.9.16",
     "nodemon": "^3.1.7",
     "pg": "^8.13.1",
+    "resend": "^4.0.1",
     "sequelize": "^6.37.5",
+    "sib-api-v3-sdk": "^8.5.0",
     "uuid": "^11.0.3"
   },
   "devDependencies": {
