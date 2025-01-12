@@ -38,7 +38,9 @@ module.exports = (app, channel) => {
     // Add to cart
     app.post('/cart', auth, isBuyer, async (req, res, next) => {
         try {
-            const { productId, name, price, quantity, image } = req.body;
+            console.log('Received cart request body:', req.body); // Debug log
+            
+            const { productId, name, price, quantity = 1, image } = req.body;
             const userId = req.user._id || req.user.id;
             
             // Validate required fields
@@ -46,25 +48,34 @@ module.exports = (app, channel) => {
             if (!productId) missingFields.push('productId');
             if (!name) missingFields.push('name');
             if (!price) missingFields.push('price');
-            if (!quantity) missingFields.push('quantity');
             
             if (missingFields.length > 0) {
+                console.error('Missing fields in request:', missingFields);
                 return res.status(400).json({ 
-                    message: `Missing required fields: ${missingFields.join(', ')}` 
+                    message: `Missing required fields: ${missingFields.join(', ')}`,
+                    receivedData: req.body
                 });
             }
 
             const { data } = await service.AddToCart(
                 userId,
-                { id: productId, name, price, image },
-                quantity
+                { 
+                    id: productId, 
+                    name, 
+                    price: parseFloat(price), 
+                    image 
+                },
+                parseInt(quantity) || 1
             );
 
             return res.status(200).json(data);
         } catch (err) {
             console.error('Add to cart error:', err);
             if (err.message) {
-                return res.status(400).json({ message: err.message });
+                return res.status(400).json({ 
+                    message: err.message,
+                    error: err.stack
+                });
             }
             next(err);
         }
@@ -192,5 +203,14 @@ module.exports = (app, channel) => {
             console.error('Error sending email:', error);
             res.status(500).json({ error: error.message || 'Failed to send email' });
         }
+    });
+
+    // In your error handling middleware or route handler
+    app.use((err, req, res, next) => {
+        console.error('Shopping service error:', err);
+        res.status(400).json({
+            message: err.message,
+            details: err.stack
+        });
     });
 };
