@@ -10,8 +10,8 @@ module.exports = (app, channel) => {
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-            user: process.env.GMAIL_USER, // Your Gmail address
-            pass: process.env.GMAIL_APP_PASSWORD // Your Gmail App Password
+            user: process.env.GMAIL_USER,
+            pass: process.env.GMAIL_APP_PASSWORD
         }
     });
 
@@ -24,21 +24,42 @@ module.exports = (app, channel) => {
         }
     });
 
+    // Add CORS headers middleware
+    const addCorsHeaders = (req, res, next) => {
+        res.header('Access-Control-Allow-Origin', req.headers.origin);
+        res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        
+        // Handle preflight requests
+        if (req.method === 'OPTIONS') {
+            return res.sendStatus(200);
+        }
+        next();
+    };
+
     // Get cart
-    app.get('/cart', auth, isBuyer, async (req, res, next) => {
+    app.get('/cart', addCorsHeaders, auth, isBuyer, async (req, res, next) => {
         try {
-            const userId = req.user._id || req.user.id; // Handle both _id and id
+            const userId = req.user._id || req.user.id;
+            console.log('Getting cart for user:', userId); // Debug log
+            
             const { data } = await service.GetCart(userId);
             return res.status(200).json(data);
         } catch (err) {
+            console.error('Error getting cart:', err);
             next(err);
         }
     });
 
     // Add to cart
-    app.post('/cart', auth, isBuyer, async (req, res, next) => {
+    app.post('/cart', addCorsHeaders, auth, isBuyer, async (req, res, next) => {
         try {
-            console.log('Received cart request body:', req.body); // Debug log
+            console.log('Add to cart request:', {
+                body: req.body,
+                user: req.user,
+                headers: req.headers
+            });
             
             const { productId, name, price, quantity = 1, image } = req.body;
             const userId = req.user._id || req.user.id;
@@ -50,39 +71,28 @@ module.exports = (app, channel) => {
             if (!price) missingFields.push('price');
             
             if (missingFields.length > 0) {
-                console.error('Missing fields in request:', missingFields);
-                return res.status(400).json({ 
-                    message: `Missing required fields: ${missingFields.join(', ')}`,
-                    receivedData: req.body
+                return res.status(400).json({
+                    error: 'Missing required fields',
+                    fields: missingFields
                 });
             }
 
-            const { data } = await service.AddToCart(
-                userId,
-                { 
-                    id: productId, 
-                    name, 
-                    price: parseFloat(price), 
-                    image 
-                },
-                parseInt(quantity) || 1
-            );
+            const { data } = await service.AddToCart(userId, {
+                id: productId,
+                name,
+                price: parseFloat(price),
+                image
+            }, parseInt(quantity) || 1);
 
             return res.status(200).json(data);
         } catch (err) {
-            console.error('Add to cart error:', err);
-            if (err.message) {
-                return res.status(400).json({ 
-                    message: err.message,
-                    error: err.stack
-                });
-            }
+            console.error('Error adding to cart:', err);
             next(err);
         }
     });
 
     // Update cart quantity
-    app.patch('/cart/:productId', auth, isBuyer, async (req, res, next) => {
+    app.patch('/cart/:productId', addCorsHeaders, auth, isBuyer, async (req, res, next) => {
         try {
             const { productId } = req.params;
             const { quantity } = req.body;
@@ -104,15 +114,12 @@ module.exports = (app, channel) => {
             return res.status(200).json(data);
         } catch (err) {
             console.error('Update cart error:', err);
-            if (err.message) {
-                return res.status(400).json({ message: err.message });
-            }
             next(err);
         }
     });
 
     // Remove from cart
-    app.delete('/cart/:productId', auth, isBuyer, async (req, res, next) => {
+    app.delete('/cart/:productId', addCorsHeaders, auth, isBuyer, async (req, res, next) => {
         try {
             const userId = req.user._id || req.user.id;
             const { productId } = req.params;
@@ -120,30 +127,24 @@ module.exports = (app, channel) => {
             return res.status(200).json(data);
         } catch (err) {
             console.error('Remove from cart error:', err);
-            if (err.message) {
-                return res.status(400).json({ message: err.message });
-            }
             next(err);
         }
     });
 
     // Clear cart
-    app.delete('/cart', auth, isBuyer, async (req, res, next) => {
+    app.delete('/cart', addCorsHeaders, auth, isBuyer, async (req, res, next) => {
         try {
             const userId = req.user._id || req.user.id;
             const { data } = await service.ClearCart(userId);
             return res.status(200).json(data);
         } catch (err) {
             console.error('Clear cart error:', err);
-            if (err.message) {
-                return res.status(400).json({ message: err.message });
-            }
             next(err);
         }
     });
 
     // Get all orders
-    app.get('/orders', auth, isBuyer, async (req, res, next) => {
+    app.get('/orders', addCorsHeaders, auth, isBuyer, async (req, res, next) => {
         try {
             const { data } = await service.GetOrders(req.user._id);
             return res.status(200).json(data);
@@ -153,7 +154,7 @@ module.exports = (app, channel) => {
     });
 
     // Get order by ID
-    app.get('/orders/:orderId', auth, isBuyer, async (req, res, next) => {
+    app.get('/orders/:orderId', addCorsHeaders, auth, isBuyer, async (req, res, next) => {
         try {
             const { data } = await service.GetOrder(req.params.orderId);
             return res.status(200).json(data);
@@ -163,7 +164,7 @@ module.exports = (app, channel) => {
     });
 
     // Create order
-    app.post('/orders', auth, isBuyer, async (req, res, next) => {
+    app.post('/orders', addCorsHeaders, auth, isBuyer, async (req, res, next) => {
         try {
             const { data } = await service.CreateOrder(req.user._id, req.body);
             return res.status(201).json(data);
@@ -173,7 +174,7 @@ module.exports = (app, channel) => {
     });
 
     // Send order confirmation email
-    app.post('/send-order-email', async (req, res) => {
+    app.post('/send-order-email', addCorsHeaders, async (req, res) => {
         try {
             const { email, orderDetails } = req.body;
 
