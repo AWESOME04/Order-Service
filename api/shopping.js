@@ -74,7 +74,9 @@ module.exports = (app, channel) => {
                 headers: req.headers
             });
             
-            const { productId, name, price, quantity = 1, image } = req.body.item || req.body;
+            // Handle both formats (direct and nested item)
+            const data = req.body.item || req.body;
+            const { productId, name, price, quantity = 1, image } = data;
             const userId = req.user._id || req.user.id;
             
             // Validate required fields
@@ -90,7 +92,7 @@ module.exports = (app, channel) => {
                 });
             }
 
-            const { data } = await service.AddToCart(userId, {
+            const result = await service.AddToCart(userId, {
                 id: productId,
                 name,
                 price: parseFloat(price),
@@ -98,10 +100,13 @@ module.exports = (app, channel) => {
                 quantity: parseInt(quantity) || 1
             });
 
-            return res.status(200).json(data);
+            return res.status(200).json(result.data);
         } catch (err) {
             console.error('Error adding to cart:', err);
-            next(err);
+            return res.status(400).json({
+                message: 'Error adding to cart',
+                details: err.toString()
+            });
         }
     });
 
