@@ -8,36 +8,10 @@ const { CreateChannel } = require("./utils");
 
 require("dotenv").config();
 
-// CORS configuration
-const corsOptions = {
-  origin: [
-    'http://localhost:5173',
-    'https://multi-vendor-system.vercel.app',
-    'http://localhost:3000',
-    'capacitor://localhost',
-    'http://localhost',
-    'http://localhost:64256'
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-// Move CORS before other middleware
-app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cors());
 app.use(express.static(__dirname + "/public"));
 app.use(express.urlencoded({ extended: true }));
-
-// Add error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ 
-    error: 'Internal Server Error',
-    message: err.message 
-  });
-});
 
 async function startApp() {
   try {
