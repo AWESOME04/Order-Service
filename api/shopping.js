@@ -26,9 +26,9 @@ module.exports = (app, channel) => {
 
     // Add CORS headers middleware
     const addCorsHeaders = (req, res, next) => {
-        res.header('Access-Control-Allow-Origin', '*'); // Allow all origins for testing
+        res.header('Access-Control-Allow-Origin', req.headers.origin);
         res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.header('Access-Control-Allow-Credentials', 'true');
         
         // Handle preflight requests
