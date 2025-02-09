@@ -19,24 +19,39 @@ class ShoppingService {
     }
   }
 
-  async AddToCart(customerId, product, quantity) {
+  async AddToCart(customerId, product) {
     try {
-      if (!product || !product.id || !quantity) {
-        throw new Error('Invalid product data or quantity');
+      // Check stock availability first
+      const productResponse = await this.productService.GetProductById(product.id);
+      if (!productResponse || productResponse.stock <= 0) {
+        throw new Error('Product is out of stock');
       }
 
-      // Ensure quantity is a positive number
-      const qty = parseInt(quantity);
-      if (isNaN(qty) || qty <= 0) {
-        throw new Error('Quantity must be a positive number');
-      }
+      const cartItem = {
+        customerId,
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        image: product.image
+      };
 
-      const cart = await this.repository.AddCartItem(customerId, product, qty);
-      const cartItems = cart.items || [];
-      const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      return FormatData({ items: cartItems, total });
+      const cart = await this.repository.AddCartItem(cartItem);
+
+      // Publish message to update product stock
+      await this.channel.publish(EXCHANGE_NAME, 'PRODUCT_SERVICE', 
+        Buffer.from(JSON.stringify({
+          event: 'UPDATE_PRODUCT_STOCK',
+          data: {
+            productId: product.id,
+            quantityChange: -1 // Reduce stock by 1
+          }
+        }))
+      );
+
+      return cart;
     } catch (err) {
-      throw new Error('Error adding to cart');
+      throw new Error(err);
     }
   }
 
