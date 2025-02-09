@@ -8,11 +8,11 @@ const Cart = sequelize.define('Cart', {
     autoIncrement: true
   },
   customerId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING,
     allowNull: false
   },
   items: {
-    type: DataTypes.JSON,
+    type: DataTypes.JSONB,
     defaultValue: []
   }
 }, {

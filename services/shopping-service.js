@@ -34,14 +34,20 @@ class ShoppingService {
 
   async AddToCart(customerId, product) {
     try {
+      if (!customerId || !product || !product.id) {
+        throw new Error('Invalid input data');
+      }
+
       const cartItem = {
-        customerId,
-        productId: product.id,
+        customerId: String(customerId), // Ensure customerId is a string
+        productId: String(product.id), // Ensure productId is a string
         name: product.name,
-        price: product.price,
+        price: parseFloat(product.price),
         quantity: 1,
         image: product.image || product.img
       };
+
+      console.log('Adding to cart:', cartItem);
 
       const cart = await this.repository.AddCartItem(cartItem);
 
@@ -50,11 +56,11 @@ class ShoppingService {
         event: 'UPDATE_PRODUCT_STOCK',
         data: {
           productId: product.id,
-          quantityChange: -1 // Reduce stock by 1
+          quantityChange: -1
         }
       }));
 
-      return cart;
+      return FormatData(cart);
     } catch (err) {
       console.error('Error in AddToCart:', err);
       throw new Error(err.message || 'Error adding to cart');
