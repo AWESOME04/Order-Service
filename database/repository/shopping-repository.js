@@ -30,42 +30,45 @@ class ShoppingRepository {
     }
 
     // Add or update cart item
-    async AddCartItem(cartItem) {
+    async AddCartItem(customerId, item, quantity) {
         try {
             let cart = await Cart.findOne({
-                where: { customerId: cartItem.customerId }
+                where: { customerId }
             });
 
             if (!cart) {
+                // Create new cart if it doesn't exist
                 cart = await Cart.create({
-                    customerId: cartItem.customerId,
+                    customerId,
                     items: [{
-                        productId: cartItem.productId,
-                        name: cartItem.name,
-                        price: parseFloat(cartItem.price),
-                        quantity: cartItem.quantity,
-                        image: cartItem.image
+                        productId: item.id,
+                        name: item.name,
+                        price: item.price,
+                        quantity: quantity || 1,
+                        image: item.image
                     }]
                 });
             } else {
-                const existingItems = cart.items || [];
-                const existingItemIndex = existingItems.findIndex(
-                    item => String(item.productId) === String(cartItem.productId)
-                );
+                // Ensure items is an array
+                let items = Array.isArray(cart.items) ? [...cart.items] : [];
+                const existingItemIndex = items.findIndex(i => i.productId === item.id);
 
-                if (existingItemIndex === -1) {
-                    existingItems.push({
-                        productId: cartItem.productId,
-                        name: cartItem.name,
-                        price: parseFloat(cartItem.price),
-                        quantity: cartItem.quantity,
-                        image: cartItem.image
-                    });
+                if (existingItemIndex >= 0) {
+                    // Update existing item quantity
+                    items[existingItemIndex].quantity += (quantity || 1);
                 } else {
-                    existingItems[existingItemIndex].quantity += cartItem.quantity;
+                    // Add new item
+                    items.push({
+                        productId: item.id,
+                        name: item.name,
+                        price: item.price,
+                        quantity: quantity || 1,
+                        image: item.image
+                    });
                 }
 
-                await cart.update({ items: existingItems });
+                // Update cart with new items array
+                await cart.update({ items: items });
             }
 
             return cart;
