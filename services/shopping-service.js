@@ -1,11 +1,24 @@
 const ShoppingRepository = require("../database/repository/shopping-repository");
 const { FormatData } = require("../utils");
 const { PublishMessage } = require('../utils');
+const axios = require('axios');
 
 class ShoppingService {
   constructor(channel) {
     this.channel = channel;
     this.repository = new ShoppingRepository();
+    // Initialize product service URL from environment variable
+    this.productServiceUrl = process.env.PRODUCT_SERVICE_URL || 'https://product-service-qwti.onrender.com';
+  }
+
+  async GetProductById(productId) {
+    try {
+      const response = await axios.get(`${this.productServiceUrl}/products/${productId}`);
+      return response.data;
+    } catch (err) {
+      console.error('Error fetching product:', err);
+      return null;
+    }
   }
 
   async GetCart(customerId) {
@@ -21,37 +34,30 @@ class ShoppingService {
 
   async AddToCart(customerId, product) {
     try {
-      // Check stock availability first
-      const productResponse = await this.productService.GetProductById(product.id);
-      if (!productResponse || productResponse.stock <= 0) {
-        throw new Error('Product is out of stock');
-      }
-
       const cartItem = {
         customerId,
         productId: product.id,
         name: product.name,
         price: product.price,
         quantity: 1,
-        image: product.image
+        image: product.image || product.img
       };
 
       const cart = await this.repository.AddCartItem(cartItem);
 
       // Publish message to update product stock
-      await this.channel.publish(EXCHANGE_NAME, 'PRODUCT_SERVICE', 
-        Buffer.from(JSON.stringify({
-          event: 'UPDATE_PRODUCT_STOCK',
-          data: {
-            productId: product.id,
-            quantityChange: -1 // Reduce stock by 1
-          }
-        }))
-      );
+      await PublishMessage(this.channel, 'PRODUCT_SERVICE', JSON.stringify({
+        event: 'UPDATE_PRODUCT_STOCK',
+        data: {
+          productId: product.id,
+          quantityChange: -1 // Reduce stock by 1
+        }
+      }));
 
       return cart;
     } catch (err) {
-      throw new Error(err);
+      console.error('Error in AddToCart:', err);
+      throw new Error(err.message || 'Error adding to cart');
     }
   }
 
